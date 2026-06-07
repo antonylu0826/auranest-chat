@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Default policy controlling how permission checks behave for a role.
+/// DENY_ALL: only explicitly granted permissions pass (default for all new roles).
+/// READ_ALL: all *_READ permissions pass automatically; writes/deletes require explicit grants.
+/// ALLOW_ALL: every permission check passes — custom ADMIN-level bypass for non-system roles.
+enum PermissionPolicy {
+  DENY_ALL
+  READ_ALL
+  ALLOW_ALL
+}
+
+/// Granular permission assignable to a custom Role. ADMIN bypasses all checks;
+/// these values are only evaluated for non-ADMIN roles. Embedded in the JWT at login.
+enum Permission {
+  // User management
+  USERS_READ
+  USERS_CREATE
+  USERS_UPDATE
+  USERS_DELETE
+  // API key management
+  API_KEYS_READ
+  API_KEYS_CREATE
+  API_KEYS_DELETE
+}
+
+/// System role or custom role. ADMIN and USER are seeded system roles and cannot be deleted. @internal
+/// Marked @internal so MetaService excludes it from the API-key scope catalog.
+model Role {
+  id               String           @id @default(cuid())
+  /// Unique machine name, e.g. "ADMIN", "USER", "EDITOR". Used in JWT roleName field.
+  name             String           @unique
+  /// Human-readable label shown in UI.
+  displayName      String           @map("display_name")
+  /// System roles (ADMIN / USER) cannot be deleted or renamed.
+  isSystem         Boolean          @default(false) @map("is_system")
+  /// Default deny; explicit permissions in RolePermission are additive on top of the policy.
+  permissionPolicy PermissionPolicy @default(DENY_ALL) @map("permission_policy")
+  permissions      RolePermission[]
+  userRoles        UserRole[]
+  apiKeys          ApiKey[]
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  @@map("roles")
+}
+
+/// Junction table between Role and Permission enum values. @internal
+/// Marked @internal so MetaService excludes it from the auto-derived scope catalog.
+model RolePermission {
+  id         String     @id @default(cuid())
+  roleId     String     @map("role_id")
+  permission Permission
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permission])
+  @@map("role_permissions")
+}
+
+/// Junction table supporting many-to-many User ↔ Role assignment. @internal
+model UserRole {
+  userId    String   @map("user_id")
+  roleId    String   @map("role_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+/// System user account. Used for authentication in local-auth mode.
+/// In OIDC mode the password field is unused; identity is verified via JWKS.
+model User {
+  id        String   @id @default(cuid())
+  /// Login email, must be unique across the system.
+  email     String   @unique
+  password  String
+  /// Display name shown in UI; optional.
+  name      String?
+  /// Soft-disable without deleting — preserves audit history.
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  userRoles UserRole[]
+
+  @@map("users")
+}
+
+/// Machine-to-machine API key for external integrations (n8n, AI agents).
+/// Created by ADMIN only. Raw key is shown once at creation and never stored. @internal
+model ApiKey {
+  id         String    @id @default(cuid())
+  /// Human-readable label, e.g. "n8n production" or "AI agent read-only".
+  name       String
+  /// First 16 chars of the raw key, shown in lists for identification (e.g. "an_live_a1b2c3d4").
+  prefix     String
+  /// SHA-256 hash of the raw key. The raw key is never persisted.
+  hashedKey  String    @unique @map("hashed_key")
+  /// Role this key authenticates as; FK to roles table.
+  roleId     String    @map("role_id")
+  role       Role      @relation(fields: [roleId], references: [id])
+  /// Module-level scopes, e.g. ["users:read","users:*"]. "*" = all scopes. Empty = deny all.
+  scopes     String[]
+  /// Requests per minute. null = system default (60).
+  rateLimit  Int?      @map("rate_limit")
+  /// Whether this key can be used. Set false to revoke without deleting.
+  isActive   Boolean   @default(true) @map("is_active")
+  /// Optional expiry. null = never expires.
+  expiresAt  DateTime? @map("expires_at")
+  /// Email of the ADMIN who created this key. Snapshot string, no FK.
+  createdBy  String?   @map("created_by")
+  /// Timestamp of last successful authentication with this key.
+  lastUsedAt DateTime? @map("last_used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  @@map("api_keys")
+}

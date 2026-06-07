@@ -1,0 +1,18 @@
+{
+  "name": "auranest-app-template",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n back,front -c blue,green \"pnpm -C backend dev\" \"pnpm -C frontend dev\"",
+    "dev:backend": "pnpm -C backend dev",
+    "dev:frontend": "pnpm -C frontend dev",
+    "typecheck": "pnpm -C backend typecheck && pnpm -C frontend typecheck",
+    "check": "biome check backend/src frontend/src",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down -v"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "concurrently": "^9.1.0"
+  }
+}

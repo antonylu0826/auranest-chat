@@ -1,0 +1,148 @@
+{
+  "common": {
+    "save": "儲存",
+    "cancel": "取消",
+    "delete": "刪除",
+    "edit": "編輯",
+    "create": "建立",
+    "creating": "建立中…",
+    "saving": "儲存中…",
+    "enable": "啟用",
+    "disable": "停用",
+    "loading": "載入中…",
+    "noData": "找不到資料。",
+    "page": "第"
+  },
+  "auth": {
+    "signIn": "登入",
+    "signingIn": "登入中…",
+    "loginError": "登入失敗",
+    "email": "電子郵件",
+    "password": "密碼",
+    "emailPlaceholder": "you@example.com",
+    "passwordPlaceholder": "••••••••",
+    "welcomeBack": "歡迎回來",
+    "signInToContinue": "登入以繼續",
+    "enterCredentials": "輸入帳號密碼以繼續",
+    "continueWithSso": "使用 SSO 繼續",
+    "useOrgAccount": "使用您的組織帳號繼續"
+  },
+  "nav": {
+    "account": "帳號設定",
+    "logout": "登出"
+  },
+  "sidebar": {
+    "home": "首頁",
+    "admin": "管理",
+    "users": "使用者",
+    "apiKeys": "API 金鑰",
+    "roles": "角色管理"
+  },
+  "welcome": {
+    "greeting": "歡迎回來",
+    "subtitle": "今天有什麼計畫嗎？",
+    "quickAccess": "快速存取"
+  },
+  "pages": {
+    "dashboard": "首頁",
+    "users": "使用者",
+    "apiKeys": "API 金鑰",
+    "roles": "角色管理"
+  },
+  "roles": {
+    "title": "角色管理",
+    "newRole": "新增角色",
+    "searchPlaceholder": "搜尋角色名稱…",
+    "noRoles": "找不到角色。",
+    "name": "角色代碼",
+    "namePlaceholder": "例如：EDITOR",
+    "nameHint": "只允許大寫英文字母、數字及底線",
+    "displayName": "顯示名稱",
+    "displayNamePlaceholder": "例如：編輯者",
+    "permissionPolicy": "預設存取政策",
+    "permissions": "明細權限",
+    "userCount": "使用者數",
+    "apiKeyCount": "API 金鑰數",
+    "system": "系統角色",
+    "editRole": "編輯角色",
+    "deleteRole": "刪除角色",
+    "deleteConfirm": "此操作無法復原，角色將被永久刪除。",
+    "cannotDeleteSystem": "系統角色無法刪除。",
+    "cannotDeleteHasUsers": "角色仍有使用者或 API 金鑰指派，請先移除後再刪除。",
+    "allowAllNote": "此角色採用「允許全部」政策，明細設定不生效。",
+    "policy": {
+      "DENY_ALL": "拒絕（預設）",
+      "READ_ALL": "允許讀取",
+      "ALLOW_ALL": "允許全部"
+    },
+    "groups": {
+      "users": "使用者管理",
+      "apiKeys": "API 金鑰"
+    },
+    "perm": {
+      "USERS_READ": "讀取使用者",
+      "USERS_CREATE": "建立使用者",
+      "USERS_UPDATE": "更新使用者",
+      "USERS_DELETE": "刪除使用者",
+      "API_KEYS_READ": "讀取 API 金鑰",
+      "API_KEYS_CREATE": "建立 API 金鑰",
+      "API_KEYS_DELETE": "刪除 API 金鑰"
+    }
+  },
+  "apiKeys": {
+    "title": "API 金鑰管理",
+    "newKey": "建立金鑰",
+    "searchPlaceholder": "搜尋名稱…",
+    "noItems": "尚無 API 金鑰",
+    "keyCreatedOnce": "金鑰只顯示一次，請立即複製並妥善保存",
+    "copyKey": "複製金鑰",
+    "copied": "已複製",
+    "fields": {
+      "name": "名稱",
+      "role": "權限層級",
+      "scopes": "存取範圍",
+      "rateLimit": "速率限制（req/min）",
+      "expiresAt": "到期日",
+      "isActive": "啟用",
+      "prefix": "金鑰前綴",
+      "createdBy": "建立者",
+      "lastUsedAt": "最後使用",
+      "createdAt": "建立時間"
+    },
+    "rateLimit": {
+      "default": "預設（60/min）",
+      "custom": "自訂"
+    },
+    "actions": {
+      "revoke": "撤銷",
+      "revokeConfirm": "確定要撤銷此金鑰？此操作無法復原。"
+    }
+  },
+  "users": {
+    "title": "使用者",
+    "newUser": "新增使用者",
+    "createUser": "建立使用者",
+    "name": "姓名",
+    "namePlaceholder": "王小明",
+    "email": "電子郵件",
+    "emailPlaceholder": "user@example.com",
+    "password": "密碼",
+    "passwordPlaceholder": "至少 8 個字元",
+    "role": "角色",
+    "status": "狀態",
+    "created": "建立時間",
+    "active": "啟用",
+    "disabled": "停用",
+    "you": "（你）",
+    "tileDesc": "管理系統使用者與角色",
+    "editUser": "編輯使用者",
+    "deleteUser": "刪除使用者",
+    "deleteConfirm": "這個操作無法復原，帳號將被永久刪除。",
+    "searchPlaceholder": "搜尋名稱或電子郵件…",
+    "noUsers": "找不到使用者。",
+    "roles": {
+      "ADMIN": "管理員",
+      "USER": "一般用戶"
+    }
+  }
+}

@@ -1,0 +1,148 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "creating": "Creating…",
+    "saving": "Saving…",
+    "enable": "Enable",
+    "disable": "Disable",
+    "loading": "Loading…",
+    "noData": "No data found.",
+    "page": "Page"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signingIn": "Signing in…",
+    "loginError": "Login failed",
+    "email": "Email",
+    "password": "Password",
+    "emailPlaceholder": "you@example.com",
+    "passwordPlaceholder": "••••••••",
+    "welcomeBack": "Welcome back",
+    "signInToContinue": "Sign in to continue",
+    "enterCredentials": "Enter your credentials to continue",
+    "continueWithSso": "Continue with SSO",
+    "useOrgAccount": "Use your organisation account to continue"
+  },
+  "nav": {
+    "account": "Account",
+    "logout": "Log out"
+  },
+  "sidebar": {
+    "home": "Home",
+    "admin": "Admin",
+    "users": "Users",
+    "apiKeys": "API Keys",
+    "roles": "Roles"
+  },
+  "welcome": {
+    "greeting": "Welcome back",
+    "subtitle": "What would you like to do today?",
+    "quickAccess": "Quick access"
+  },
+  "pages": {
+    "dashboard": "Home",
+    "users": "Users",
+    "apiKeys": "API Keys",
+    "roles": "Roles"
+  },
+  "roles": {
+    "title": "Roles",
+    "newRole": "New role",
+    "searchPlaceholder": "Search roles…",
+    "noRoles": "No roles found.",
+    "name": "Role code",
+    "namePlaceholder": "e.g. EDITOR",
+    "nameHint": "Uppercase letters, digits and underscores only",
+    "displayName": "Display name",
+    "displayNamePlaceholder": "e.g. Editor",
+    "permissionPolicy": "Default access policy",
+    "permissions": "Explicit permissions",
+    "userCount": "Users",
+    "apiKeyCount": "API keys",
+    "system": "System role",
+    "editRole": "Edit role",
+    "deleteRole": "Delete role",
+    "deleteConfirm": "This action cannot be undone. The role will be permanently deleted.",
+    "cannotDeleteSystem": "System roles cannot be deleted.",
+    "cannotDeleteHasUsers": "This role is still assigned to users or API keys. Remove them first.",
+    "allowAllNote": "This role uses the Allow All policy. Explicit permissions have no effect.",
+    "policy": {
+      "DENY_ALL": "Deny all (default)",
+      "READ_ALL": "Allow reads",
+      "ALLOW_ALL": "Allow all"
+    },
+    "groups": {
+      "users": "User Management",
+      "apiKeys": "API Keys"
+    },
+    "perm": {
+      "USERS_READ": "Read users",
+      "USERS_CREATE": "Create users",
+      "USERS_UPDATE": "Update users",
+      "USERS_DELETE": "Delete users",
+      "API_KEYS_READ": "Read API keys",
+      "API_KEYS_CREATE": "Create API keys",
+      "API_KEYS_DELETE": "Delete API keys"
+    }
+  },
+  "apiKeys": {
+    "title": "API Key Management",
+    "newKey": "Create key",
+    "searchPlaceholder": "Search by name…",
+    "noItems": "No API keys found.",
+    "keyCreatedOnce": "This key is shown only once. Copy and store it securely.",
+    "copyKey": "Copy key",
+    "copied": "Copied",
+    "fields": {
+      "name": "Name",
+      "role": "Permission level",
+      "scopes": "Access scopes",
+      "rateLimit": "Rate limit (req/min)",
+      "expiresAt": "Expires at",
+      "isActive": "Active",
+      "prefix": "Key prefix",
+      "createdBy": "Created by",
+      "lastUsedAt": "Last used",
+      "createdAt": "Created"
+    },
+    "rateLimit": {
+      "default": "Default (60/min)",
+      "custom": "Custom"
+    },
+    "actions": {
+      "revoke": "Revoke",
+      "revokeConfirm": "Are you sure you want to revoke this key? This action cannot be undone."
+    }
+  },
+  "users": {
+    "title": "Users",
+    "newUser": "New user",
+    "createUser": "Create user",
+    "name": "Name",
+    "namePlaceholder": "Jane Doe",
+    "email": "Email",
+    "emailPlaceholder": "user@example.com",
+    "password": "Password",
+    "passwordPlaceholder": "Min. 8 characters",
+    "role": "Role",
+    "status": "Status",
+    "created": "Created",
+    "active": "Active",
+    "disabled": "Disabled",
+    "you": "(you)",
+    "tileDesc": "Manage system users and roles",
+    "editUser": "Edit user",
+    "deleteUser": "Delete user",
+    "deleteConfirm": "This action cannot be undone. The account will be permanently deleted.",
+    "searchPlaceholder": "Search by name or email…",
+    "noUsers": "No users found.",
+    "roles": {
+      "ADMIN": "Admin",
+      "USER": "User"
+    }
+  }
+}
