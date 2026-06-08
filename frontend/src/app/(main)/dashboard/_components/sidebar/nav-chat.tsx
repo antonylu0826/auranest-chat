@@ -67,7 +67,10 @@ export function NavChat() {
                 </SidebarMenuButton>
                 {unread > 0 && (
                   <SidebarMenuBadge
-                    className={cn(hasMention && "bg-destructive text-destructive-foreground")}
+                    className={cn(
+                      "bg-secondary text-secondary-foreground",
+                      hasMention && "bg-destructive text-destructive-foreground",
+                    )}
                   >
                     {hasMention ? "@" : (unread > 99 ? "99+" : unread)}
                   </SidebarMenuBadge>
@@ -103,7 +106,10 @@ export function NavChat() {
                 </SidebarMenuButton>
                 {unread > 0 && (
                   <SidebarMenuBadge
-                    className={cn(hasMention && "bg-destructive text-destructive-foreground")}
+                    className={cn(
+                      "bg-secondary text-secondary-foreground",
+                      hasMention && "bg-destructive text-destructive-foreground",
+                    )}
                   >
                     {hasMention ? "@" : (unread > 99 ? "99+" : unread)}
                   </SidebarMenuBadge>
