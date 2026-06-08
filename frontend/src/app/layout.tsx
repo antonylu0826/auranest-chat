@@ -19,6 +19,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: APP_CONFIG.meta.title,
   description: APP_CONFIG.meta.description,
+  manifest: "/manifest.webmanifest",
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

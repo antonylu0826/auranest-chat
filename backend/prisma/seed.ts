@@ -4,8 +4,18 @@ import { SYSTEM_ADMIN_ROLE, SYSTEM_USER_ROLE } from '../src/auth/constants';
 
 const prisma = new PrismaClient();
 
-// USER role has no default permissions — add module-specific grants when forking.
-const USER_DEFAULT_PERMISSIONS: Permission[] = [];
+// Chat app: all authenticated users need read + channel create + message delete (own).
+const USER_DEFAULT_PERMISSIONS: Permission[] = [
+  'CHAT_CHANNEL_READ',
+  'CHAT_CHANNEL_CREATE',
+  'CHAT_MESSAGE_DELETE',
+];
+
+const TEST_USERS = [
+  { email: 'alice@example.com', name: 'Alice', password: 'password123' },
+  { email: 'bob@example.com',   name: 'Bob',   password: 'password123' },
+  { email: 'carol@example.com', name: 'Carol', password: 'password123' },
+];
 
 async function main() {
   const adminRole = await prisma.role.upsert({
@@ -28,28 +38,80 @@ async function main() {
   ]);
   console.log('System roles ready (ADMIN, USER)');
 
-  const email = process.env.SEED_USER_EMAIL;
-  const password = process.env.SEED_USER_PASSWORD;
-  const name = process.env.SEED_USER_NAME;
+  const adminEmail = process.env.SEED_USER_EMAIL;
+  const adminPassword = process.env.SEED_USER_PASSWORD;
+  const adminName = process.env.SEED_USER_NAME;
 
-  if (!email || !password) {
+  if (!adminEmail || !adminPassword) {
     console.log('SEED_USER_EMAIL / SEED_USER_PASSWORD not set — skipping user seed.');
     return;
   }
 
-  const hashed = await bcrypt.hash(password, 12);
-  const user = await prisma.user.upsert({
-    where: { email },
+  // ── Admin user ─────────────────────────────────────────────────────────────
+  const adminUser = await prisma.user.upsert({
+    where: { email: adminEmail },
     update: {},
-    create: { email, password: hashed, name },
+    create: { email: adminEmail, password: await bcrypt.hash(adminPassword, 12), name: adminName },
   });
   await prisma.userRole.upsert({
-    where: { userId_roleId: { userId: user.id, roleId: adminRole.id } },
+    where: { userId_roleId: { userId: adminUser.id, roleId: adminRole.id } },
     update: {},
-    create: { userId: user.id, roleId: adminRole.id },
+    create: { userId: adminUser.id, roleId: adminRole.id },
   });
+  console.log(`Seed user ready: ${adminEmail} (ADMIN)`);
 
-  console.log(`Seed user ready: ${email} (ADMIN)`);
+  // ── Test users ─────────────────────────────────────────────────────────────
+  const testUserIds: string[] = [];
+  for (const u of TEST_USERS) {
+    const hashed = await bcrypt.hash(u.password, 12);
+    const created = await prisma.user.upsert({
+      where: { email: u.email },
+      update: {},
+      create: { email: u.email, password: hashed, name: u.name },
+    });
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId: created.id, roleId: userRole.id } },
+      update: {},
+      create: { userId: created.id, roleId: userRole.id },
+    });
+    testUserIds.push(created.id);
+  }
+  console.log(`Test users ready: ${TEST_USERS.map((u) => u.email).join(', ')}`);
+
+  // ── Default channels ───────────────────────────────────────────────────────
+  const defaultChannels = [
+    { name: 'general', slug: 'general', description: 'Company-wide announcements and general discussion.' },
+    { name: 'random',  slug: 'random',  description: 'Non-work banter and fun stuff.' },
+  ];
+
+  const allMemberIds = [adminUser.id, ...testUserIds];
+
+  for (const ch of defaultChannels) {
+    const channel = await prisma.channel.upsert({
+      where: { slug: ch.slug },
+      update: {},
+      create: {
+        name: ch.name,
+        slug: ch.slug,
+        description: ch.description,
+        isPrivate: false,
+        createdById: adminUser.id,
+      },
+    });
+
+    for (const userId of allMemberIds) {
+      await prisma.channelMember.upsert({
+        where: { channelId_userId: { channelId: channel.id, userId } },
+        update: {},
+        create: {
+          channelId: channel.id,
+          userId,
+          role: userId === adminUser.id ? 'OWNER' : 'MEMBER',
+        },
+      });
+    }
+    console.log(`#${ch.slug} ready (${allMemberIds.length} members)`);
+  }
 }
 
 main()

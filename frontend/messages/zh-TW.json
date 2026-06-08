@@ -36,7 +36,8 @@
     "admin": "管理",
     "users": "使用者",
     "apiKeys": "API 金鑰",
-    "roles": "角色管理"
+    "roles": "角色管理",
+    "chat": "聊天"
   },
   "welcome": {
     "greeting": "歡迎回來",
@@ -47,7 +48,10 @@
     "dashboard": "首頁",
     "users": "使用者",
     "apiKeys": "API 金鑰",
-    "roles": "角色管理"
+    "roles": "角色管理",
+    "chat": "聊天",
+    "channels": "頻道",
+    "dms": "私訊"
   },
   "roles": {
     "title": "角色管理",

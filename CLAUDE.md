@@ -602,6 +602,134 @@ pnpm -C backend schema:docs   # regenerate after any schema change
 
 ---
 
+## MCP Server
+
+AI agents（Claude Desktop、Cursor、n8n 等）可透過 MCP 協定直接操作 app 資料，無需了解 REST API 細節。
+
+**Endpoint：** `POST /mcp`  
+**認證：** `X-Api-Key: an_live_<hex>`（必須，JWT 不支援）  
+**協定：** Streamable HTTP（stateless，每個 request 獨立）
+
+```bash
+# 健康確認（不需要 API key）
+GET /mcp/health
+# → { status: "ok", toolCount: 37 }
+
+# MCP 請求（需要 API key）
+POST /mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+X-Api-Key: an_live_...
+
+{ "jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {} }
+```
+
+### 工具分層
+
+**Layer 1 — 自動 CRUD（從 Prisma DMMF 生成）**
+
+每個非 `@internal` model 自動獲得 5 支工具：`list_*`、`get_*`、`create_*`、`update_*`、`delete_*`（複合 PK model 只有 `list_*` + `create_*`）。
+
+工具名稱以 DB table 名稱命名（`m.dbName ?? m.name.toLowerCase()`），scope 自動推導：
+- `list_*` / `get_*` → 需要 `{table}:read`
+- `create_*` / `update_*` / `delete_*` → 需要 `{table}:write`
+
+**Layer 2 — 自訂語意工具（`@McpTool()` decorator）**
+
+在任何 NestJS service 上用 `@McpTool()` 裝飾器定義高階業務邏輯工具：
+
+```ts
+// src/my-module/my-mcp.tools.ts
+@Injectable()
+export class MyMcpTools implements OnModuleInit {
+  constructor(
+    private readonly myService: MyService,
+    private readonly registry: McpToolRegistry,
+  ) {}
+
+  onModuleInit() {
+    registerMcpToolsFromInstance(this, this.registry);
+  }
+
+  @McpTool({
+    name: 'summarize_weekly_activity',
+    description: 'Return message counts grouped by channel for the past 7 days.',
+    inputSchema: z.object({ timezone: z.string().optional() }),
+    requiredScopes: ['chat_messages:read'],
+  })
+  async summarizeWeeklyActivity(args: { timezone?: string }) {
+    // ... 實作
+  }
+}
+```
+
+然後在 module 的 `providers` 陣列加入 `MyMcpTools`：
+
+```ts
+@Module({
+  providers: [MyService, MyMcpTools],
+})
+export class MyModule {}
+```
+
+Layer 2 工具同名時會覆蓋 Layer 1（出現 log 提示）。
+
+### 排除 model
+
+在 Prisma model 的 `///` doc comment 加上 tag 即可排除：
+
+```prisma
+/// @internal — system model, not exposed via MCP
+model AuditLog { ... }
+
+/// @mcp-exclude — has custom tool instead
+model MessageSummary { ... }
+```
+
+- `@internal`：同時從 MCP 和 `GET /meta/schema` 的 `availableScopes` 中排除
+- `@mcp-exclude`：僅從 MCP 排除，`/meta/schema` 仍可見
+
+### Scope 與 API key 設定
+
+建立 API key 時，`scopes` 決定 agent 可呼叫哪些工具：
+
+```json
+{ "scopes": ["*"] }                         // 所有工具
+{ "scopes": ["chat_channels:read"] }        // 只能 list/get chat_channels
+{ "scopes": ["chat_messages:read", "chat_messages:write"] }
+```
+
+Claude Desktop 範例設定（`claude_desktop_config.json`）：
+
+```json
+{
+  "mcpServers": {
+    "auranest-chat": {
+      "url": "http://localhost:3040/mcp",
+      "headers": { "X-Api-Key": "an_live_..." }
+    }
+  }
+}
+```
+
+### 相關檔案
+
+```
+backend/src/mcp/
+  types.ts                   McpCallContext、McpToolDefinition 介面
+  mcp.module.ts              @Global() module，export McpToolRegistry
+  mcp.controller.ts          POST /mcp、GET /mcp/health
+  mcp.service.ts             createServer()：組裝 McpServer + 掛載工具
+  mcp-tool.registry.ts       工具 Map + matchScope() 邏輯
+  mcp-tool.decorator.ts      @McpTool() decorator + registerMcpToolsFromInstance()
+  auto/
+    crud-tool.factory.ts     從 DMMF 生成 Layer 1 工具定義
+    crud-executor.ts         執行 list/get/create/update/delete
+    input-schema.builder.ts  Prisma field → Zod schema 轉換
+```
+
+---
+
 ## Fork 一個新 app 的步驟
 
 1. Fork / copy 此 repo → 重命名（e.g. `auranest-hr`）

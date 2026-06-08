@@ -29,6 +29,12 @@ enum Permission {
   API_KEYS_READ
   API_KEYS_CREATE
   API_KEYS_DELETE
+  // Chat — channel-level access control (message-level handled by membership)
+  CHAT_CHANNEL_READ
+  CHAT_CHANNEL_CREATE
+  CHAT_CHANNEL_DELETE
+  /// Delete any user's message (admin moderation).
+  CHAT_MESSAGE_DELETE
 }
 
 /// System role or custom role. ADMIN and USER are seeded system roles and cannot be deleted. @internal
@@ -76,8 +82,9 @@ model UserRole {
   @@map("user_roles")
 }
 
-/// System user account. Used for authentication in local-auth mode.
+/// System user account. Used for authentication in local-auth mode. @internal
 /// In OIDC mode the password field is unused; identity is verified via JWKS.
+/// Marked @internal — contains password hash and push subscription keys; not exposed via MCP tools.
 model User {
   id        String   @id @default(cuid())
   /// Login email, must be unique across the system.
@@ -86,14 +93,262 @@ model User {
   /// Display name shown in UI; optional.
   name      String?
   /// Soft-disable without deleting — preserves audit history.
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  isActive    Boolean  @default(true) @map("is_active")
+  /// Whether the user has opted into web push notifications globally.
+  pushEnabled Boolean  @default(true) @map("push_enabled")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   userRoles UserRole[]
 
+  // ── Chat relations ───────────────────────────────────────
+  channelsCreated    Channel[]           @relation("ChannelCreator")
+  channelMemberships ChannelMember[]     @relation("ChannelMemberships")
+  dmParticipations   DmParticipant[]     @relation("DmParticipations")
+  messagesSent       Message[]           @relation("MessageSender")
+  messageReactions   Reaction[]          @relation("MessageReactions")
+  webhooksCreated    IncomingWebhook[]   @relation("WebhookCreator")
+  pushSubscriptions  PushSubscription[]
+
   @@map("users")
 }
+
+// ─── Chat ─────────────────────────────────────────────────────────────────────
+
+/// Public or private chat channel. Members can post messages and threads.
+model Channel {
+  id          String    @id @default(cuid())
+  /// Display name, e.g. "general", "engineering".
+  name        String
+  /// URL-safe identifier, unique across non-archived channels. Archived channels rename slug to "<slug>:archived:<id>".
+  slug        String    @unique
+  description String?
+  /// Short topic shown in the channel header.
+  topic       String?
+  /// Private channels are only visible to their members.
+  isPrivate   Boolean   @default(false) @map("is_private")
+  createdById String    @map("created_by_id")
+  createdBy   User      @relation("ChannelCreator", fields: [createdById], references: [id])
+  /// Denormalized timestamp of the last message; used to sort channels in the sidebar.
+  lastMessageAt DateTime? @map("last_message_at")
+  /// Set when the channel is soft-archived.
+  archivedAt  DateTime? @map("archived_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  members          ChannelMember[]
+  messages         Message[]
+  incomingWebhooks IncomingWebhook[]
+
+  @@map("chat_channels")
+}
+
+/// Membership record linking a user to a channel with a role.
+model ChannelMember {
+  channelId String  @map("channel_id")
+  userId    String  @map("user_id")
+  /// OWNER: can manage channel settings and members. MEMBER: can post messages.
+  role      String  @default("MEMBER")
+  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user      User    @relation("ChannelMemberships", fields: [userId], references: [id])
+  joinedAt  DateTime  @default(now()) @map("joined_at")
+
+  @@id([channelId, userId])
+  @@index([userId])
+  @@map("chat_channel_members")
+}
+
+/// 1-on-1 direct message conversation between exactly two users.
+model DirectConversation {
+  id               String    @id @default(cuid())
+  /// SHA-256 of the two participant IDs sorted and joined by ":". Ensures uniqueness without a separate unique index.
+  participantsHash String    @unique @map("participants_hash")
+  lastMessageAt    DateTime? @map("last_message_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  participants DmParticipant[]
+  messages     Message[]
+
+  @@map("chat_direct_conversations")
+}
+
+/// Participant record in a direct conversation.
+model DmParticipant {
+  conversationId String             @map("conversation_id")
+  userId         String             @map("user_id")
+  conversation   DirectConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User               @relation("DmParticipations", fields: [userId], references: [id])
+
+  @@id([conversationId, userId])
+  @@index([userId])
+  @@map("chat_dm_participants")
+}
+
+/// A chat message in a channel or a DM. parentId makes it a thread reply (max one level deep).
+model Message {
+  id        String    @id @default(cuid())
+  /// USER: regular message. BOT: posted by an incoming webhook. SYSTEM: automated notification.
+  type      String    @default("USER")
+  content   String
+  senderId  String    @map("sender_id")
+  sender    User      @relation("MessageSender", fields: [senderId], references: [id])
+  /// Display name override for bot/webhook messages. When set, shown instead of sender.name.
+  botName   String?   @map("bot_name")
+  /// Belongs to a channel XOR a DM. Enforced at app layer + DB CHECK constraint in migration.
+  channelId String?   @map("channel_id")
+  dmId      String?   @map("dm_id")
+  /// Parent message ID for thread replies. null = top-level message. Max one level: parent.parentId must be null.
+  parentId  String?   @map("parent_id")
+  /// Denormalized count of thread replies for the thread preview badge.
+  replyCount Int      @default(0) @map("reply_count")
+  /// Client-generated idempotency key. Nullable — only USER messages use it; NULL is not unique-constrained.
+  clientNonce String? @map("client_nonce")
+  editedAt  DateTime? @map("edited_at")
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  channel   Channel?            @relation(fields: [channelId], references: [id])
+  dm        DirectConversation? @relation(fields: [dmId], references: [id])
+  parent    Message?            @relation("Thread", fields: [parentId], references: [id])
+  replies   Message[]           @relation("Thread")
+  reactions   Reaction[]
+  mentions    Mention[]
+  revisions   MessageRevision[]
+  attachments Attachment[]
+
+  @@index([channelId, createdAt(sort: Desc)])
+  @@index([dmId, createdAt(sort: Desc)])
+  @@index([parentId])
+  @@unique([senderId, clientNonce], name: "unique_sender_nonce")
+  @@map("chat_messages")
+}
+
+/// Immutable snapshot of a message saved before each edit for audit purposes. @internal
+model MessageRevision {
+  id        String   @id @default(cuid())
+  messageId String   @map("message_id")
+  content   String
+  editedAt  DateTime @default(now()) @map("edited_at")
+  editorId  String   @map("editor_id")
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("chat_message_revisions")
+}
+
+/// @mention extracted from message content on send.
+model Mention {
+  id              String  @id @default(cuid())
+  messageId       String  @map("message_id")
+  /// Mentioned user id. null for @here or @channel.
+  mentionedUserId String? @map("mentioned_user_id")
+  /// USER | HERE | CHANNEL
+  mentionType     String  @map("mention_type")
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([mentionedUserId])
+  @@map("chat_mentions")
+}
+
+/// Tracks the last read message per user per channel. Single source of truth for channel unread counts. @internal
+model ChannelRead {
+  channelId         String   @map("channel_id")
+  userId            String   @map("user_id")
+  lastReadMessageId String?  @map("last_read_message_id")
+  lastReadAt        DateTime @default(now()) @map("last_read_at")
+
+  @@id([channelId, userId])
+  @@map("chat_channel_reads")
+}
+
+/// Tracks the last read message per user per DM conversation. Single source of truth for DM unread counts. @internal
+model DmRead {
+  conversationId    String   @map("conversation_id")
+  userId            String   @map("user_id")
+  lastReadMessageId String?  @map("last_read_message_id")
+  lastReadAt        DateTime @default(now()) @map("last_read_at")
+
+  @@id([conversationId, userId])
+  @@map("chat_dm_reads")
+}
+
+/// Emoji reaction on a message. Composite PK prevents a user from reacting with the same emoji twice.
+model Reaction {
+  messageId String   @map("message_id")
+  userId    String   @map("user_id")
+  emoji     String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation("MessageReactions", fields: [userId], references: [id])
+
+  @@id([messageId, userId, emoji])
+  @@index([messageId])
+  @@index([userId])
+  @@map("chat_reactions")
+}
+
+/// File attached to a message. Uploaded before message creation; linked on send.
+model Attachment {
+  id        String   @id @default(cuid())
+  /// Null until the owning message is created (pre-upload state).
+  messageId String?  @map("message_id")
+  /// Original filename as uploaded by the client.
+  filename  String
+  mimetype  String
+  /// File size in bytes.
+  size      Int
+  /// Relative URL path served by the backend, e.g. "/uploads/abc123.jpg".
+  url       String
+
+  message   Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  @@index([messageId])
+  @@map("chat_attachments")
+}
+
+/// Incoming webhook token that allows external systems (n8n, AI agents) to post messages to a channel.
+model IncomingWebhook {
+  id          String   @id @default(cuid())
+  channelId   String   @map("channel_id")
+  /// Human-readable label, e.g. "n8n alert".
+  name        String
+  /// First 16 chars of the raw token for display (e.g. "awh_a1b2c3d4e5f6g7").
+  prefix      String
+  /// SHA-256 hash of the raw token. Raw token is shown once and never stored.
+  tokenHash   String   @unique @map("token_hash")
+  /// The user who created this webhook; their account is used as the message sender.
+  createdById String   @map("created_by_id")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  channel   Channel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("WebhookCreator", fields: [createdById], references: [id])
+
+  @@map("chat_incoming_webhooks")
+}
+
+/// Web Push subscription for a user's browser/device. @internal
+/// Contains ECDH encryption keys — not exposed via MCP tools.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  /// Push endpoint URL provided by the browser.
+  endpoint  String   @unique
+  /// ECDH public key (base64url) for payload encryption.
+  p256dh    String   @map("p256dh")
+  /// Authentication secret (base64url).
+  auth      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("push_subscriptions")
+}
+
+// ─── API Keys ──────────────────────────────────────────────────────────────────
 
 /// Machine-to-machine API key for external integrations (n8n, AI agents).
 /// Created by ADMIN only. Raw key is shown once at creation and never stored. @internal

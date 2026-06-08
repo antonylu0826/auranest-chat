@@ -11,7 +11,9 @@ import { getLocale, getPreference } from "@/server/server-actions";
 
 import { AppBreadcrumb } from "@/components/app-breadcrumb";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { PushNotificationToggle } from "@/components/push-notification-toggle";
 import { AuthGuard } from "./_components/auth-guard";
+import { ChatProvider } from "./_components/chat-provider";
 import { LayoutControls } from "./_components/sidebar/layout-controls";
 import { ThemeSwitcher } from "./_components/sidebar/theme-switcher";
 
@@ -60,6 +62,7 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
               <AppBreadcrumb />
             </div>
             <div className="flex items-center gap-2">
+              <PushNotificationToggle />
               <LocaleSwitcher currentLocale={locale} />
               <LayoutControls />
               <ThemeSwitcher />
@@ -68,7 +71,9 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
         </header>
         {/* Pages can set data-content-padding="false" to render full-bleed app layouts. */}
         <div className="h-full p-4 has-data-[content-padding=false]:p-0 md:p-6 md:has-data-[content-padding=false]:p-0">
-          <AuthGuard>{children}</AuthGuard>
+          <AuthGuard>
+            <ChatProvider>{children}</ChatProvider>
+          </AuthGuard>
         </div>
       </SidebarInset>
     </SidebarProvider>
